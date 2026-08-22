@@ -1,58 +1,111 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NAV_LINKS } from '../constants';
+import { logo } from '../constants/images';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
+
   const mobileMenuRef = useRef(null);
+  const tickingRef = useRef(false);
 
+  /*
+   * Scroll state + active section
+   */
   useEffect(() => {
+    const sections = NAV_LINKS
+      .map((link) => ({
+        href: link.href,
+        element: document.querySelector(link.href),
+      }))
+      .filter((item) => item.element);
+
     const handleScroll = () => {
-      // Update scrolled state
-      setIsScrolled(window.scrollY > 50);
+      if (tickingRef.current) return;
 
-      // Find active section
-      let current = '';
+      tickingRef.current = true;
 
-      for (const link of NAV_LINKS) {
-        const section = document.querySelector(link.href);
-        if (!section) continue;
+      requestAnimationFrame(() => {
+        const scrollY = window.scrollY;
 
-        const top = section.offsetTop - 150; // Adjust for navbar height + buffer
-        const bottom = top + section.offsetHeight;
+        setIsScrolled(scrollY > 40);
 
-        if (window.scrollY >= top && window.scrollY < bottom) {
-          current = link.href;
-          break; // Stop at first matching section (top-down)
+        let current = '';
+
+        for (const section of sections) {
+          const top =
+            section.element.getBoundingClientRect().top +
+            scrollY -
+            140;
+
+          const bottom =
+            top + section.element.offsetHeight;
+
+          if (scrollY >= top && scrollY < bottom) {
+            current = section.href;
+            break;
+          }
         }
-      }
 
-      setActiveSection(current);
+        setActiveSection(current);
+
+        tickingRef.current = false;
+      });
     };
 
-    handleScroll(); // Initial check
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
 
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []); // Removed isScrolled from deps — no need!
+    window.addEventListener('scroll', handleScroll, {
+      passive: true,
+    });
 
-  // Close mobile menu when clicking outside
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  /*
+   * Close mobile menu when clicking outside
+   * or pressing Escape
+   */
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target)) {
+    if (!isMobileMenuOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (
+        mobileMenuRef.current &&
+        !mobileMenuRef.current.contains(event.target)
+      ) {
         setIsMobileMenuOpen(false);
       }
     };
 
-    if (isMobileMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setIsMobileMenuOpen(false);
+      }
+    };
 
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener(
+        'mousedown',
+        handleClickOutside
+      );
+
+      document.removeEventListener(
+        'keydown',
+        handleEscape
+      );
+    };
   }, [isMobileMenuOpen]);
 
-  // Optional: Close mobile menu on route change or link click
+  /*
+   * Close mobile menu after navigation
+   */
   const handleLinkClick = () => {
     setIsMobileMenuOpen(false);
   };
@@ -60,95 +113,300 @@ const Navbar = () => {
   return (
     <nav
       className={`
-        fixed top-0 left-0 right-0 z-50
-        transition-all duration-300
-        ${isScrolled ? 'py-4 bg-black/50 backdrop-blur-md shadow-md' : 'py-6 bg-transparent'}
+        fixed
+        inset-x-0
+        top-0
+        z-50
+        transition-all
+        duration-300
+        ${isScrolled
+          ? `
+              border-b
+              border-white/[0.06]
+              bg-black/70
+              py-4
+              backdrop-blur-xl
+            `
+          : `
+              bg-transparent
+              py-6
+            `
+        }
       `}
     >
-      <div className="container mx-auto px-4 flex items-center justify-between relative">
-        <a href="#" className="font-heading text-xl font-bold tracking-tight z-20">
-          SRS<span className="text-accent-muted">.</span>
-        </a>
-
-        {/* Desktop Menu */}
-        <ul className="hidden md:flex items-center gap-8">
-          {NAV_LINKS.map((link) => (
-            <li key={link.name} className="relative">
-              <a
-                href={link.href}
-                className={`
-                  text-sm font-medium transition-colors duration-200
-                  ${activeSection === link.href
-                    ? 'text-accent-muted'
-                    : 'text-text-secondary hover:text-text-primary'
-                  }
-                `}
-              >
-                {link.name}
-              </a>
-              {activeSection === link.href && (
-                <span className="absolute left-0 -bottom-1 w-full h-[2px] bg-accent-muted rounded-full transition-all duration-300" />
-              )}
-            </li>
-          ))}
-        </ul>
-
+      <div
+        className="
+          container
+          mx-auto
+          flex
+          items-center
+          justify-between
+          px-4
+        "
+      >
+        {/* ========================================
+            LOGO
+        ========================================= */}
         <a
-          href="#contact"
-          className="btn-secondary text-sm py-2 px-6 hidden md:inline-block z-20"
+          href="#home"
+          aria-label="Srijan Raj Shakya — Home"
+          className="
+            relative
+            z-20
+            flex
+            items-center
+            rounded
+            focus-visible:outline-none
+            focus-visible:ring-2
+            focus-visible:ring-accent-muted
+            focus-visible:ring-offset-2
+            focus-visible:ring-offset-black
+          "
         >
-          Contact me
+          <img
+            src={logo}
+            alt="Srijan Raj Shakya"
+            className="
+              h-12
+              w-auto
+              object-contain
+              md:h-12
+            "
+          />
         </a>
 
-        {/* Mobile Menu Toggle */}
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          aria-label="Toggle mobile menu"
-          aria-expanded={isMobileMenuOpen}
-          className="md:hidden flex flex-col justify-center items-center gap-1 z-20"
+        {/* ========================================
+            DESKTOP NAVIGATION
+        ========================================= */}
+        <div
+          className="
+            hidden
+            items-center
+            gap-8
+            md:flex
+          "
         >
-          <span
-            className={`block w-6 h-[2px] bg-white transition-all duration-300 ${
-              isMobileMenuOpen ? 'rotate-45 translate-y-1.5' : ''
-            }`}
-          />
-          <span
-            className={`block w-6 h-[2px] bg-white transition-all duration-300 ${
-              isMobileMenuOpen ? 'opacity-0' : ''
-            }`}
-          />
-          <span
-            className={`block w-6 h-[2px] bg-white transition-all duration-300 ${
-              isMobileMenuOpen ? '-rotate-45 -translate-y-1.5' : ''
-            }`}
-          />
-        </button>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div
-            ref={mobileMenuRef}
-            className="absolute top-full left-0 w-full bg-black/90 backdrop-blur-md flex flex-col items-center py-8 gap-8 md:hidden animate-in slide-in-from-top-5 duration-300"
+          <ul
+            className="
+              flex
+              items-center
+              gap-7
+            "
           >
-            {NAV_LINKS.map((link) => (
-              <a
-                key={link.name}
-                href={link.href}
-                onClick={handleLinkClick}
-                className="text-white text-lg font-medium hover:text-accent-muted transition-colors"
-              >
-                {link.name}
-              </a>
-            ))}
-            <a
-              href="#contact"
-              onClick={handleLinkClick}
-              className="btn-secondary text-sm py-2 px-6"
+            {NAV_LINKS.map((link) => {
+              const isActive =
+                activeSection === link.href;
+
+              return (
+                <li
+                  key={link.name}
+                  className="relative"
+                >
+                  <a
+                    href={link.href}
+                    className={`
+                      relative
+                      inline-flex
+                      py-2
+                      text-sm
+                      font-medium
+                      transition-colors
+                      duration-200
+                      focus-visible:outline-none
+                      focus-visible:text-text-primary
+                      ${isActive
+                        ? 'text-text-primary'
+                        : 'text-text-secondary hover:text-text-primary'
+                      }
+                    `}
+                  >
+                    {link.name}
+
+                    {/* Active indicator */}
+                    <span
+                      aria-hidden="true"
+                      className={`
+                        absolute
+                        -bottom-0.5
+                        left-0
+                        h-px
+                        bg-accent-muted
+                        transition-all
+                        duration-300
+                        ${isActive
+                          ? 'w-full opacity-100'
+                          : 'w-0 opacity-0'
+                        }
+                      `}
+                    />
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+
+        {/* ========================================
+            MOBILE CONTROLS
+            Button + menu share the same ref
+        ========================================= */}
+        <div
+          ref={mobileMenuRef}
+          className="
+            relative
+            md:hidden
+          "
+        >
+          {/* Hamburger */}
+          <button
+            type="button"
+            onClick={() =>
+              setIsMobileMenuOpen((prev) => !prev)
+            }
+            aria-label={
+              isMobileMenuOpen
+                ? 'Close navigation menu'
+                : 'Open navigation menu'
+            }
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navigation"
+            className="
+              relative
+              z-20
+              flex
+              h-10
+              w-10
+              flex-col
+              items-center
+              justify-center
+              gap-[5px]
+              rounded-lg
+              transition-colors
+              hover:bg-white/[0.05]
+              focus-visible:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-accent-muted
+            "
+          >
+            {/* Top line */}
+            <span
+              className={`
+                block
+                h-[1.5px]
+                w-5
+                bg-white
+                transition-all
+                duration-300
+                ${isMobileMenuOpen
+                  ? 'translate-y-[6.5px] rotate-45'
+                  : ''
+                }
+              `}
+            />
+
+            {/* Middle line */}
+            <span
+              className={`
+                block
+                h-[1.5px]
+                w-5
+                bg-white
+                transition-all
+                duration-300
+                ${isMobileMenuOpen
+                  ? 'opacity-0'
+                  : 'opacity-100'
+                }
+              `}
+            />
+
+            {/* Bottom line */}
+            <span
+              className={`
+                block
+                h-[1.5px]
+                w-5
+                bg-white
+                transition-all
+                duration-300
+                ${isMobileMenuOpen
+                  ? '-translate-y-[6.5px] -rotate-45'
+                  : ''
+                }
+              `}
+            />
+          </button>
+
+          {/* ========================================
+              MOBILE MENU
+          ========================================= */}
+          <div
+            id="mobile-navigation"
+            className={`
+              absolute
+              right-0
+              top-full
+              mt-3
+              w-[calc(100vw-24px)]
+              max-w-sm
+              overflow-hidden
+              rounded-2xl
+              border
+              border-white/[0.08]
+              bg-black/90
+              backdrop-blur-xl
+              transition-all
+              duration-300
+              ${isMobileMenuOpen
+                ? 'visible translate-y-0 opacity-100'
+                : 'invisible -translate-y-2 opacity-0'
+              }
+            `}
+          >
+            <div
+              className="
+                flex
+                flex-col
+                gap-1
+                p-3
+              "
             >
-              Contact me
-            </a>
+              {NAV_LINKS.map((link) => {
+                const isActive =
+                  activeSection === link.href;
+
+                return (
+                  <a
+                    key={link.name}
+                    href={link.href}
+                    onClick={handleLinkClick}
+                    className={`
+                      rounded-xl
+                      px-4
+                      py-3
+                      text-sm
+                      font-medium
+                      transition-colors
+                      ${isActive
+                        ? `
+                            bg-white/[0.06]
+                            text-accent-muted
+                          `
+                        : `
+                            text-text-secondary
+                            hover:bg-white/[0.04]
+                            hover:text-text-primary
+                          `
+                      }
+                    `}
+                  >
+                    {link.name}
+                  </a>
+                );
+              })}
+            </div>
           </div>
-        )}
+        </div>
       </div>
     </nav>
   );
